@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+
+
 class Simplex:
     dim = 0
     val = 0
@@ -81,8 +84,10 @@ class BoundaryMatrix:
     simplices = []
     sid = {}  # simplices id
     pivots = {}
+    __is_reduced = False
 
     def __init__(self, simplices):
+        self.__is_reduced = False
         self.simplices = simplices
 
         order = lambda s: (s.val, s.dim)
@@ -101,35 +106,73 @@ class BoundaryMatrix:
         return s
 
     def reduce(self):
-        pivots = {}
-        for j in range(len(self.columns)):
-            lower = self.columns[j].lower()
-            while lower in pivots and lower != None:
-                self.columns[j] += self.columns[pivots[lower]]
+        if not self.__is_reduced:
+            pivots = {}
+            for j in range(len(self.columns)):
                 lower = self.columns[j].lower()
-            if lower != None:
-                pivots[lower] = j
-        self.pivots = pivots
+                while lower in pivots and lower != None:
+                    self.columns[j] += self.columns[pivots[lower]]
+                    lower = self.columns[j].lower()
+                if lower != None:
+                    pivots[lower] = j
+            self.pivots = pivots
 
-    def get_barcode(self):
+
+class BarCode:
+    bc = []
+    colors = ["blue", "green", "red", "cyan", "magenta", "yellow", "black"]
+
+    def __init__(self, M: BoundaryMatrix):
+        """Compute the Bar Code on a reduced matrix"""
+        M.reduce()
         bc = []
-        for j in range(len(self.columns)):
-            lower = self.columns[j].lower()
-            if lower == None and j not in self.pivots:
-                dim = self.columns[j].dim
-                val = self.columns[j].val
+        for j in range(len(M.columns)):
+            lower = M.columns[j].lower()
+            if lower == None and j not in M.pivots:
+                dim = M.columns[j].dim
+                val = M.columns[j].val
                 bc.append((dim, val, "inf"))
-            elif lower in self.pivots:
-                dim = self.columns[j].dim - 1
-                val_end = self.columns[j].val
-                val_init = self.columns[lower].val
+            elif lower in M.pivots:
+                dim = M.columns[j].dim - 1
+                val_end = M.columns[j].val
+                val_init = M.columns[lower].val
                 bc.append((dim, val_init, val_end))
-        return bc
+        self.bc = bc
+
+    def sort(self):
+        order = lambda x: x[0]
+        self.bc.sort(key=order)
+
+    def plot(self, logarithmic=False):
+        min_x = self.bc[0][1]
+        max_x = min_x * 1.1
+        for bar in self.bc:
+            min_x = min(min_x, bar[1])
+            if bar[2] != "inf":
+                max_x = max(max_x, bar[2])
+        min_x = min_x - 0.1 * max_x
+        max_x *= 1.1
+
+        plt.figure()
+        for i in range(len(self.bc)):
+            bar = self.bc[i]
+            dim = bar[0]
+            low = bar[1]
+            high = bar[2]
+            if high == "inf":
+                high = max_x
+
+            plt.plot([low, high], [i, i], color=self.colors[dim % len(self.colors)])
+        plt.yticks([])
+        plt.xlim(min_x, max_x)
+        if logarithmic:
+            plt.xscale('log')
+        plt.show()
 
 
-def read():
+def read(file_name):
     simplices = []
-    with open("example.txt", "r") as f:
+    with open(file_name, "r") as f:
         for line in f:
             l = line.rstrip().split(" ")
             val = float(l[0])
@@ -141,14 +184,19 @@ def read():
 
 
 def boundary_matrix():
-    simplices = read()
+    #simplices = read("example.txt")
+    simplices = read("filtration_B.txt")
 
     B = BoundaryMatrix(simplices)
-    print(B)
+    # print(B)
     B.reduce()
-    print(B)
-    print(B.sid)
-    print(B.get_barcode())
+    # print(B)
+    # print(B.sid)
+    bc = BarCode(B)
+    """ for i in bc.bc:
+        print("{} {} {}".format(i[0], i[1], i[2])) """
+
+    bc.plot(True)
 
 
 if __name__ == "__main__":
