@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import sys
 
 
 class Simplex:
@@ -84,6 +86,7 @@ class BoundaryMatrix:
     simplices = []
     sid = {}  # simplices id
     pivots = {}
+
     __is_reduced = False
 
     def __init__(self, simplices):
@@ -108,6 +111,7 @@ class BoundaryMatrix:
     def reduce(self):
         if not self.__is_reduced:
             pivots = {}
+
             for j in range(len(self.columns)):
                 lower = self.columns[j].lower()
                 while lower in pivots and lower != None:
@@ -143,16 +147,27 @@ class BarCode:
         order = lambda x: x[0]
         self.bc.sort(key=order)
 
-    def plot(self, logarithmic=False):
-        min_x = self.bc[0][1]
+    def remove(self, length):
+        """Remove bar with a lenght less than the specified minimum length"""
+        i = 0
+        while i < len(self.bc):
+            if self.bc[i][2] != "inf" and self.bc[i][2] - self.bc[i][1] <= length:
+                self.bc.pop(i)
+            else:
+                i += 1
+
+    def plot(self, logarithmic=False, title = ""):
+        min_x = self.bc[0][1] + 1e-3
         max_x = min_x * 1.1
         for bar in self.bc:
             min_x = min(min_x, bar[1])
             if bar[2] != "inf":
                 max_x = max(max_x, bar[2])
-        min_x = min_x - 0.1 * max_x
+            else:
+                max_x = max(max_x, bar[1])
         max_x *= 1.1
-
+        
+        dims = set()
         plt.figure()
         for i in range(len(self.bc)):
             bar = self.bc[i]
@@ -161,12 +176,19 @@ class BarCode:
             high = bar[2]
             if high == "inf":
                 high = max_x
-
-            plt.plot([low, high], [i, i], color=self.colors[dim % len(self.colors)])
+            color = self.colors[dim % len(self.colors)]
+            plt.plot([low, high], [i, i], color=color)
+            dims.add(dim)
         plt.yticks([])
         plt.xlim(min_x, max_x)
         if logarithmic:
-            plt.xscale('log')
+            plt.xscale("log")
+        patches = []
+        for d in dims:
+            color = self.colors[d % len(self.colors)]
+            patches.append(mpatches.Patch(color = color, label= "H{}".format(d)))
+            plt.legend(handles=patches)
+        plt.title(title)
         plt.show()
 
 
@@ -179,25 +201,38 @@ def read(file_name):
             dim = int(l[1])
             vertices = [int(i) for i in l[2:]]
             simplices.append(Simplex(dim, val, vertices))
-
     return simplices
 
 
-def boundary_matrix():
-    #simplices = read("example.txt")
-    simplices = read("filtration_B.txt")
-
+def plot_bar_code(file="torus.txt", log=False):
+    # simplices = read("ball/5-ball.txt")
+    # simplices = read("filtration_B.txt")
+    # simplices = read("projective_plane.txt")
+    simplices = read(file)
+    print("Building Boundary Matrix...")
     B = BoundaryMatrix(simplices)
     # print(B)
+    print("Reducing Matrix...")
     B.reduce()
     # print(B)
     # print(B.sid)
+    # print(B.pivots)
+    print("Computing bar code...")
     bc = BarCode(B)
-    """ for i in bc.bc:
-        print("{} {} {}".format(i[0], i[1], i[2])) """
-
-    bc.plot(True)
+    print("Sorting bar code...")
+    # bc.remove(0.05)
+    bc.sort()
+    print("Processing diagram...")
+    bc.plot(title=file.replace(".txt", ""))
 
 
 if __name__ == "__main__":
-    boundary_matrix()
+    args = sys.argv
+    log = False
+    if len(args) >= 2:
+        file = args[1]
+    else:
+        file = "torus.txt"
+    if "--log" in args:
+        log = True
+    plot_bar_code(file, log)
