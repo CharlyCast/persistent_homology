@@ -143,6 +143,12 @@ class BarCode:
                 bc.append((dim, val_init, val_end))
         self.bc = bc
 
+    def __str__(self):
+        s = ""
+        for bar in self.bc:
+            s += "{} {} {}\n".format(bar[0], bar[1], bar[2])
+        return s
+
     def sort(self):
         order = lambda x: x[0]
         self.bc.sort(key=order)
@@ -156,7 +162,7 @@ class BarCode:
             else:
                 i += 1
 
-    def plot(self, logarithmic=False, title = ""):
+    def plot(self, logarithmic=False, title=""):
         min_x = self.bc[0][1] + 1e-3
         max_x = min_x * 1.1
         for bar in self.bc:
@@ -166,7 +172,7 @@ class BarCode:
             else:
                 max_x = max(max_x, bar[1])
         max_x *= 1.1
-        
+
         dims = set()
         plt.figure()
         for i in range(len(self.bc)):
@@ -186,7 +192,7 @@ class BarCode:
         patches = []
         for d in dims:
             color = self.colors[d % len(self.colors)]
-            patches.append(mpatches.Patch(color = color, label= "H{}".format(d)))
+            patches.append(mpatches.Patch(color=color, label="H{}".format(d)))
             plt.legend(handles=patches)
         plt.title(title)
         plt.show()
@@ -205,34 +211,32 @@ def read(file_name):
 
 
 def plot_bar_code(file="torus.txt", log=False):
-    # simplices = read("ball/5-ball.txt")
-    # simplices = read("filtration_B.txt")
-    # simplices = read("projective_plane.txt")
     simplices = read(file)
-    print("Building Boundary Matrix...")
     B = BoundaryMatrix(simplices)
-    # print(B)
-    print("Reducing Matrix...")
     B.reduce()
-    # print(B)
-    # print(B.sid)
-    # print(B.pivots)
-    print("Computing bar code...")
     bc = BarCode(B)
-    print("Sorting bar code...")
-    # bc.remove(0.05)
     bc.sort()
-    print("Processing diagram...")
-    bc.plot(title=file.replace(".txt", ""))
+    bc.plot(logarithmic=log, title=file.replace(".txt", ""))
+
+
+def print_filtration(file="torus.txt"):
+    simplices = read(file)
+    B = BoundaryMatrix(simplices)
+    bc = BarCode(B)
+    print(bc)
 
 
 if __name__ == "__main__":
     args = sys.argv
     log = False
+    print_bc = False
     if len(args) >= 2:
         file = args[1]
     else:
         file = "torus.txt"
     if "--log" in args:
         log = True
-    plot_bar_code(file, log)
+    if "--print" in args:
+        print_filtration(file)
+    else :
+        plot_bar_code(file, log)
